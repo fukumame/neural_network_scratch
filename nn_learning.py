@@ -24,7 +24,8 @@ def plot_decision_boundary(pred_func,X, y):
     plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Spectral)
 
 # 損失関数の計算
-def calculate_loss(model, X, y):
+def calculate_loss(model, X, y, weight_decay_rate):
+    num_examples = len(X)
     W1, b1, W2, b2 = model['W1'], model['b1'], model['W2'], model['b2']
     # 予測を算出するためのForward propagation
     z1 = X.dot(W1) + b1
@@ -43,7 +44,7 @@ def calculate_loss(model, X, y):
     data_loss = np.sum(corect_logprobs)
     # Lossに荷重減衰を与える (optional)
     # 荷重減衰は、P.193を参照のこと
-    data_loss += reg_lambda/2 * (np.sum(np.square(W1)) + np.sum(np.square(W2)))
+    data_loss += weight_decay_rate/2 * (np.sum(np.square(W1)) + np.sum(np.square(W2)))
     return 1./num_examples * data_loss
 
 # 予測関数
@@ -62,8 +63,9 @@ def predict(model, x):
     return np.argmax(probs, axis=1)
 
 # 予測モデルの構築
-def build_model(X, y, nn_hdim, nn_input_dim, nn_output_dim, num_passes=20000, print_loss=False, reg_lambda, epsilon):
+def build_model(X, y, nn_input_dim, nn_hdim, nn_output_dim, weight_decay_rate, learning_rate, num_passes=20000, print_loss=True):
     np.random.seed(0)
+    num_examples = len(X)
     # Xavier の初期値を用いて初期化する。 正規分布に従うランダムな数を出力し、それを前層のノードの個数の平方根で割る
     # 前層のノード数が多いほど、重みのスケール(値の幅)は小さくなる。
     # 入力層のノード数が2, 隠れ層のノード数が3の場合、np.random.randn(2, 3)は、以下の通りになる
@@ -77,7 +79,7 @@ def build_model(X, y, nn_hdim, nn_input_dim, nn_output_dim, num_passes=20000, pr
     b2 = np.zeros((1, nn_output_dim))
 
     model = {}
-    for i in xrange(0, num_passes):
+    for i in range(0, num_passes):
         # 現在のモデルのパラメータを用いて予測を実施
         z1 = X.dot(W1) + b1
         a1 = np.tanh(z1)
@@ -92,6 +94,7 @@ def build_model(X, y, nn_hdim, nn_input_dim, nn_output_dim, num_passes=20000, pr
         # 例えば [[0.1, 0.9], [0.8, 0.2], [0.3, 0.7]]の場合、[-0.1, -0.2, -0.3]となる。
         delta3[range(num_examples), y] -= 1
         dW2 = (a1.T).dot(delta3)
+        db2 = np.sum(delta3, axis=0, keepdims=True)
         # powerは累乗 a1の二条のこと
         delta2 = delta3.dot(W2.T) * (1 - np.power(a1, 2))
         dW1 = np.dot(X.T, delta2)
@@ -99,16 +102,24 @@ def build_model(X, y, nn_hdim, nn_input_dim, nn_output_dim, num_passes=20000, pr
 
         # Weight decayによる過学習の防止
         # http://olanleed.hatenablog.com/entry/2013/12/03/010945
-        dW2 += reg_lambda * W2
+        dW2 += weight_decay_rate * W2
+        dW1 += weight_decay_rate * W1
 
+        # 学習率に基づき、パラメータを更新
+        W1 += -learning_rate * dW1
+        b1 += -learning_rate * db1
+        W2 += -learning_rate * dW2
+        b2 += -learning_rate * db2
 
+        model = { 'W1': W1, 'b1': b1, 'W2': W2, 'b2': b2}
 
+        # 1000回の学習に1回、損失関数を出力する
+        if print_loss and i % 1000 == 0:
+            print("Loss after iteration %i: %f" %(i, calculate_loss(model, X, y, weight_decay_rate)))
+    return model
 
-# 乱数生成の初期化
-# https://goo.gl/SGJd8S
 np.random.seed(0)
-
-# moonのデータを生成
+# 学習のための、moonのデータを生成
 X, y = sklearn.datasets.make_moons(200, noise=0.20)
 
 ## X = [[1,2], [3,4], [5,6]]となっており、x[:,0]は、:で全ての行を表し、その全ての行の0番目の項目を取得しArrayで返す
@@ -126,9 +137,13 @@ X, y = sklearn.datasets.make_moons(200, noise=0.20)
 #plt.title("Logistic Regression")
 #plt.show()
 
-num_examples = len(X) # 学習用データサイズ
 nn_input_dim = 2 # インプット層の次元数
+nn_hidden_dim = 3 # 隠れ層の次元数
 nn_output_dim = 2 # アウトプット層の次元数
 
-epsilon = 0.01 # 学習率
-reg_lambda = 0.01 # 過学習を避けるための正則化の強さ
+learning_rate = 0.01 # 学習率
+weight_decay_rate = 0.01 # 過学習を避けるための正則化の強さ
+
+model = build_model(X, y, nn_input_dim, nn_hidden_dim, nn_output_dim,  weight_decay_rate, learning_rate)
+plot_decision_boundary(lambda x: predict(model, x), X, y)
+plt.show()
