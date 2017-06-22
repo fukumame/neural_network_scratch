@@ -11,7 +11,6 @@ def plot_decision_boundary(pred_func,X, y):
     x_min, x_max = X[:, 0].min() - .5, X[:, 0].max() + .5
     y_min, y_max = X[:, 1].min() - .5, X[:, 1].max() + .5
     h = 0.01
-    # Generate a grid of points with distance h between them
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h), np.arange(y_min, y_max, h))
     # Predict the function value for the whole gid
 
@@ -93,9 +92,11 @@ def build_model(X, y, nn_input_dim, nn_hdim, nn_output_dim, weight_decay_rate, l
         # 逆に1から遠いほど、差分は大きくなる
         # 例えば [[0.1, 0.9], [0.8, 0.2], [0.3, 0.7]]の場合、[-0.1, -0.2, -0.3]となる。
         delta3[range(num_examples), y] -= 1
+        # Tは転置行列を表す
         dW2 = (a1.T).dot(delta3)
         db2 = np.sum(delta3, axis=0, keepdims=True)
-        # powerは累乗 a1の二条のこと
+        # (1 - np.power(a1, 2))は活性化関数 tanhの微分値
+        # 詳しくは、深層学習のP.51を参照のこと
         delta2 = delta3.dot(W2.T) * (1 - np.power(a1, 2))
         dW1 = np.dot(X.T, delta2)
         db1 = np.sum(delta2, axis=0)
@@ -120,7 +121,9 @@ def build_model(X, y, nn_input_dim, nn_hdim, nn_output_dim, weight_decay_rate, l
 
 np.random.seed(0)
 # 学習のための、moonのデータを生成
-X, y = sklearn.datasets.make_moons(200, noise=0.20)
+# X, y = sklearn.datasets.make_moons(200, noise=0.20)
+# circleデータを生成
+X, y = sklearn.datasets.make_circles(200, noise=0.20, factor=0.4)
 
 ## X = [[1,2], [3,4], [5,6]]となっており、x[:,0]は、:で全ての行を表し、その全ての行の0番目の項目を取得しArrayで返す
 ## つまり、X[:,0]は、[1,3,5]となり、X[:,1]は[2,4,6]となる
