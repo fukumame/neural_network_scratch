@@ -119,6 +119,15 @@ def build_model(X, y, nn_input_dim, nn_hdim, nn_output_dim, weight_decay_rate, l
             print("Loss after iteration %i: %f" %(i, calculate_loss(model, X, y, weight_decay_rate)))
     return model
 
+def calculate_accuracy(model, X, y):
+    y_pred = predict(model, X)
+    # 正解ラベルと予測があっている場合、0になる
+    diff = y_pred - y
+    # 0の数、つまりあっている数をカウント
+    correct_size = diff[diff == 0].size
+    return correct_size / y.size
+
+
 np.random.seed(0)
 # 学習のための、moonのデータを生成
 # X, y = sklearn.datasets.make_moons(200, noise=0.20)
@@ -148,5 +157,6 @@ learning_rate = 0.01 # 学習率
 weight_decay_rate = 0.01 # 過学習を避けるための正則化の強さ
 
 model = build_model(X, y, nn_input_dim, nn_hidden_dim, nn_output_dim,  weight_decay_rate, learning_rate)
+print("Accuracy : %f" %(calculate_accuracy(model, X, y)))
 plot_decision_boundary(lambda x: predict(model, x), X, y)
 plt.show()
